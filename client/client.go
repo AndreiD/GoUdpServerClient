@@ -2,19 +2,33 @@ package main
 
 import (
 	"time"
+	"github.com/jessevdk/go-flags"
+	log "github.com/Sirupsen/logrus"
 )
 
-const serverAddress = "localhost:1337"
+var opts struct {
+	ServerAddress string `short:"s" long:"serveraddress" default:"localhost:1337" description:"The Server's Address (ex: localhost:1337)"`
+	Buffer        int    `short:"b" long:"buffer" default:"10240" description:"max buffer size for the socket io"`
+	Quiet         bool   `short:"q" long:"quiet" description:"whether to print logging info or not"`
+}
+
+func init() {
+	_, err := flags.Parse(&opts)
+	errorCheck(err, "init", true)
+	if opts.Quiet {
+		log.SetLevel(log.WarnLevel)
+	}
+}
 
 func main() {
 
 	client := NewClient()
-	client.setupConnection(serverAddress)
+	client.setupConnection(opts.ServerAddress)
 
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
-	go client.readFromSocket()
+	go client.readFromSocket(opts.Buffer)
 	go client.processPackets()
 	go client.processMessages()
 

@@ -1,12 +1,13 @@
 package main
 
-import "log"
+import log "github.com/Sirupsen/logrus"
 
 func errorCheck(err error, where string, kill bool) {
 	if err != nil {
-		log.Printf("Error: %s @ %s", err.Error(), where)
 		if kill {
-			log.Fatalln("Script Terminated")
+			log.WithError(err).Fatalln("Script Terminated")
+		} else {
+			log.WithError(err).Warnf("@ %s\n", where)
 		}
 	}
 }

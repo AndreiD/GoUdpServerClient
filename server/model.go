@@ -21,26 +21,6 @@ type Message struct {
 	Message []byte
 }
 
-//"Client" Part
-type Client struct {
-	connection *net.UDPConn
-	port       int
-
-	messages chan Message
-	packets  chan packet
-	kill     chan bool
-}
-
-func NewClient() *Client {
-	return &Client{
-		packets:  make(chan packet),
-		messages: make(chan Message),
-		kill:     make(chan bool),
-	}
-}
-
-//"SERVER" Part
-
 type Server struct {
 	connection *net.UDPConn
 	client     *net.UDPAddr //or use map with an uuid

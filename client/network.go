@@ -1,11 +1,14 @@
 package main
 
 import (
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"net"
 
 	"github.com/vmihailenco/msgpack"
+	"time"
 )
+
+const ALIVE_CHECK_TIME = time.Second * 10
 
 func (c *Client) setupConnection(address string) {
 	addr, err := net.ResolveUDPAddr("udp4", address)
@@ -28,9 +31,9 @@ func (c *Client) setupConnection(address string) {
 
 }
 
-func (c *Client) readFromSocket() {
+func (c *Client) readFromSocket(buffersize int) {
 	for {
-		var b = make([]byte, 1024)
+		var b = make([]byte, buffersize)
 		n, addr, err := c.connection.ReadFromUDP(b[0:])
 		errorCheck(err, "readFromSocket", false)
 

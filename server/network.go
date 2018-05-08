@@ -1,9 +1,8 @@
 package main
 
 import (
-	"log"
 	"net"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -12,7 +11,7 @@ func (s *Server) setupServerConnection(address string) {
 	//also listen from requests from the server on a random port
 	listeningAddress, err := net.ResolveUDPAddr("udp4", ":0")
 	errorCheck(err, "setupConnection", true)
-	log.Printf("...CONNECTED! ")
+	log.Info("...CONNECTED! ")
 
 	s.connection, err = net.ListenUDP("udp4", listeningAddress)
 	errorCheck(err, "setupConnection", true)
@@ -21,9 +20,9 @@ func (s *Server) setupServerConnection(address string) {
 
 }
 
-func (s *Server) readFromSocket() {
+func (s *Server) readFromSocket(buffersize int) {
 	for {
-		var b = make([]byte, 1024)
+		var b = make([]byte, buffersize)
 		n, addr, err := s.connection.ReadFromUDP(b[0:])
 		errorCheck(err, "readFromSocket", false)
 
@@ -67,7 +66,7 @@ func (s *Server) processMessages() {
 			s.Send("the server got your message")
 		}
 		if msg.Type == VoiceMessage {
-			panic("todo:// voice message :)")
+			log.Printf("todo:// voice message :)\n")
 		}
 	}
 }
