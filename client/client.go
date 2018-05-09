@@ -18,6 +18,13 @@ func init() {
 	if opts.Quiet {
 		log.SetLevel(log.WarnLevel)
 	}
+	formatter := &log.TextFormatter{
+		ForceColors : true,
+		FullTimestamp: true,
+		TimestampFormat: "15:04:05",
+
+	}
+	log.SetFormatter(formatter)
 }
 
 func main() {

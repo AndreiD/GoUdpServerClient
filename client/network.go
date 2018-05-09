@@ -70,7 +70,7 @@ func (c *Client) processPackets() {
 func (c *Client) processMessages() {
 	for msg := range c.messages {
 		if msg.Type == TextMessage {
-			log.Printf("Received TXT : %s\n", msg.Message)
+			log.Printf("Received TXT : %s", msg.Message)
 		}
 		if msg.Type == VoiceMessage {
 			panic("todo:// voice message :)")

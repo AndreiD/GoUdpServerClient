@@ -60,10 +60,10 @@ func (s *Server) processPackets() {
 func (s *Server) processMessages() {
 	for msg := range s.messages {
 		if msg.Type == TextMessage {
-			log.Printf("Received TXT : %s\n", msg.Message)
+			log.Printf("Received TXT : %s", msg.Message)
 
-			//respond something
-			s.Send("the server got your message")
+			//respond something, ex: echo
+			s.Send(string(msg.Message))
 		}
 		if msg.Type == VoiceMessage {
 			log.Printf("todo:// voice message :)\n")

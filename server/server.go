@@ -13,12 +13,19 @@ var opts struct {
 	Quiet  bool `short:"q" long:"quiet" description:"whether to print logging info or not"`
 }
 
-func init(){
+func init() {
 	_, err := flags.Parse(&opts)
 	errorCheck(err, "init", true)
 	if opts.Quiet {
 		log.SetLevel(log.WarnLevel)
 	}
+	formatter := &log.TextFormatter{
+		ForceColors : true,
+		FullTimestamp: true,
+		TimestampFormat: "15:04:05",
+
+	}
+	log.SetFormatter(formatter)
 }
 
 func main() {
