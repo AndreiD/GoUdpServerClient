@@ -1,4 +1,4 @@
-# UDP Server / Client in GO Golang
+# UDP Server / Client in Go Golang
 
 ## Intro
 
