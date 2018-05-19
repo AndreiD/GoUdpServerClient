@@ -2,10 +2,12 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"net"
-
 	"github.com/vmihailenco/msgpack"
+	"net"
 	"time"
+	"os"
+	"io"
+	"path/filepath"
 )
 
 const ALIVE_CHECK_TIME = time.Second * 10
@@ -49,6 +51,7 @@ func (c *Client) readFromSocket(buffersize int) {
 			}
 		}
 
+		//TODO: is this needed ?
 		select {
 		case <-c.kill:
 			break
@@ -64,31 +67,74 @@ func (c *Client) processPackets() {
 		err := msgpack.Unmarshal(pack.bytes, &msg)
 		errorCheck(err, "processPackets", false)
 		c.messages <- msg
+
+		//log.Println("<<<  CLIENT GOT")
+		//spew.Dump(msg)
 	}
 }
 
 func (c *Client) processMessages() {
 	for msg := range c.messages {
-		if msg.Type == TextMessage {
-			log.Printf("Received TXT : %s", msg.Message)
-		}
-		if msg.Type == VoiceMessage {
-			panic("todo:// voice message :)")
+		switch msg.Opcode {
+		case 0:
+			log.Printf("RRQ for file %s", msg.Filename)
+		case 1:
+			log.Printf("WRQ for file %s", msg.Filename)
+		case 2:
+			log.Printf("Data for file %s", msg.Filename)
+		case 3:
+			log.Printf("Acknowledgment for file %s", msg.Filename)
+
+			//we got AKN, start sending or receiving ?
+
+			//TODO: maybe refactor here...
+			dir, _ := os.Getwd()
+			fullFilePath := dir + "/aftp/client/outgoing/" + msg.Filename
+
+			log.Println("fullFilePath:" + fullFilePath)
+			if _, err := os.Stat(fullFilePath); err == nil {
+				log.Info("file " + msg.Filename + " exists, sending it to the server")
+				c.sendFileToServer(fullFilePath)
+			} else {
+				log.Info("file " + msg.Filename + " doesn't exist, waiting for the server to send it")
+			}
+
+		case 4:
+			log.Printf("Error for file %s [%s]", msg.Filename, string(msg.Message))
+		default:
+			log.Warnln("incorrect or not implemented opcode")
 		}
 	}
 }
 
-func (c *Client) Send(message string) {
+func (c *Client) sendFileToServer(fullPathFile string) {
+
+	file, err := os.Open(fullPathFile)
+	errorCheck(err, "sendFileToServer", true)
+
+	buffer := make([]byte, opts.Buffer)
+	for {
+		if _, err := file.Read(buffer); err == io.EOF {
+			break
+		}
+		log.Printf("Sending > %d\n", len(string(buffer)))
+		c.Send(DATA, filepath.Base(fullPathFile), buffer)
+	}
+
+}
+
+func (c *Client) Send(opcode MessageType, filename string, payload []byte) {
 
 	msg := Message{
-		Type:    TextMessage,
-		Message: []byte(message),
+		opcode, filename, payload,
 	}
+
+	//log.Println(">>> CLIENT SENDING >>> ")
+	//spew.Dump(msg)
 
 	b, err := msgpack.Marshal(msg)
 	errorCheck(err, "Send", false)
 
 	_, err = c.connection.Write(b)
 	errorCheck(err, "Send", false)
-
 }

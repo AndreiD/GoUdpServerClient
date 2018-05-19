@@ -1,8 +1,8 @@
 package main
 
-import log "github.com/Sirupsen/logrus"
-
-
+import (
+	log "github.com/Sirupsen/logrus"
+)
 
 func errorCheck(err error, where string, kill bool) {
 	if err != nil {
@@ -13,3 +13,5 @@ func errorCheck(err error, where string, kill bool) {
 		}
 	}
 }
+
+

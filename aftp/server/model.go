@@ -1,12 +1,16 @@
-package server
+package main
 
 import "net"
 
 type MessageType int
 
+//list of operation codes
 const (
-	ControlMessage MessageType = iota
-	DataMessage
+	RRQ   MessageType = iota
+	WRQ
+	DATA
+	ACK
+	ERROR
 )
 
 //some bytes associated with an address
@@ -16,8 +20,9 @@ type packet struct {
 }
 
 type Message struct {
-	Type    MessageType
-	Message []byte
+	Opcode   MessageType
+	Filename string
+	Message  []byte
 }
 
 type Server struct {

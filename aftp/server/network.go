@@ -1,9 +1,10 @@
-package server
+package main
 
 import (
 	"net"
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmihailenco/msgpack"
+	"os"
 )
 
 func (s *Server) setupServerConnection(address string) {
@@ -39,6 +40,7 @@ func (s *Server) readFromSocket(buffersize int) {
 			}
 		}
 
+		//TODO: is this needed ?
 		select {
 		case <-s.kill:
 			break
@@ -54,34 +56,60 @@ func (s *Server) processPackets() {
 		err := msgpack.Unmarshal(pack.bytes, &msg)
 		errorCheck(err, "processPackets", false)
 		s.messages <- msg
+
+		//log.Println("<<<  SERVER GOT")
+		//spew.Dump(msg)
 	}
 }
 
 func (s *Server) processMessages() {
 	for msg := range s.messages {
-		if msg.Type == TextMessage {
-			log.Printf("Received TXT : %s", msg.Message)
+		switch msg.Opcode {
+		case 0:
+			log.Printf("RRQ for file %s", msg.Filename)
+		case 1:
+			log.Printf("WRQ for file %s", msg.Filename)
 
-			//respond something, ex: echo
-			s.Send(string(msg.Message))
-		}
-		if msg.Type == VoiceMessage {
-			log.Printf("todo:// voice message :)\n")
+			CreateDirIfNotExist("incoming")
+			//will replace it if already exists
+			var file, err = os.Create("incoming" + string(os.PathSeparator) + msg.Filename)
+			errorCheck(err, "creating a new file", false)
+			defer file.Close()
+
+			s.Send(ACK, msg.Filename, nil)
+
+		case 2:
+			log.Printf("Data for file %s", msg.Filename)
+			s.WriteBytesToFile(msg.Filename, msg.Message)
+		case 3:
+			log.Printf("Acknowledgment for file %s", msg.Filename)
+		case 4:
+			log.Printf("Error for file %s [%s]", msg.Filename, string(msg.Message))
+		default:
+			log.Warnln("incorrect or not implemented opcode")
 		}
 	}
 }
 
-func (s *Server) Send(message string) {
+func (s *Server) WriteBytesToFile(filename string, payload []byte) {
+	f, err := os.OpenFile("incoming/"+ filename, os.O_APPEND|os.O_WRONLY, 0644)
+	errorCheck(err, "WriteBytesToFile", false)
+	_, err = f.Write(payload)
+	errorCheck(err, "WriteBytesToFile", false)
+	defer f.Close()
+}
+func (s *Server) Send(opcode MessageType, filename string, payload []byte) {
 
 	msg := Message{
-		Type:    TextMessage,
-		Message: []byte(message),
+		opcode, filename, payload,
 	}
+
+	//log.Println(">>> SERVER SENDING >>> ")
+	//spew.Dump(msg)
 
 	b, err := msgpack.Marshal(msg)
 	errorCheck(err, "Send", false)
 
 	_, err = s.connection.WriteToUDP(b, s.client)
 	errorCheck(err, "Send", false)
-
 }

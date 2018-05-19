@@ -2,13 +2,15 @@ package main
 
 import "net"
 
-
 type MessageType int
 
+//list of operation codes
 const (
-	ControlMessage MessageType = iota
-	TextMessage
-	VoiceMessage
+	RRQ   MessageType = iota
+	WRQ
+	DATA
+	ACK
+	ERROR
 )
 
 //some bytes associated with an address
@@ -17,19 +19,22 @@ type packet struct {
 	returnAddress *net.UDPAddr
 }
 
+type Message struct {
+	Opcode   MessageType
+	Filename string
+	Message  []byte
+}
+
 type Client struct {
 	connection *net.UDPConn
-	port                int
-
+	port       int
 	messages chan Message
 	packets  chan packet
 	kill     chan bool
 }
 
-type Message struct {
-	Type        MessageType
-	Message     []byte
-}
+
+
 
 //create a new client.
 func NewClient() *Client {

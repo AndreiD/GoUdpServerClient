@@ -1,14 +1,14 @@
-package server
+package main
 
 import (
 	"net"
-	"time"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jessevdk/go-flags"
 )
 
 var opts struct {
 	Port  int  `short:"p" long:"port" default:"6969" description:"port to listen to."`
+	Buffer  int  `short:"b" long:"buffer" default:"1024" description:"buffer size. default 1024"`
 	Quiet bool `short:"q" long:"quiet" description:"print less logging information"`
 }
 
@@ -29,16 +29,15 @@ func init() {
 func main() {
 	server := NewServer()
 
-	uconn4, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: opts.Port})
+	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: opts.Port})
 	errorCheck(err, "main", true)
 
-	server.connection = uconn4
+	server.connection = udpConn
 	defer server.connection.Close()
 
-	log.Printf("Starting UDP Server, listening at %s", server.connection.LocalAddr())
+	log.Printf("Starting AFTP Server %s:%d", GetLocalIP(), opts.Port)
 
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
+
 
 	go server.readFromSocket(opts.Buffer)
 	go server.processPackets()
