@@ -111,7 +111,7 @@ func (c *Client) processMessages() {
 			log.Printf("Received a list all request from the server. Listing....")
 			var files []string
 			json.Unmarshal(msg.Message, &files)
-			spew.Print(files)
+			spew.Println(files)
 
 		default:
 			log.Warnln("incorrect or not implemented opcode")
@@ -122,14 +122,24 @@ func (c *Client) processMessages() {
 func (c *Client) sendFileToServer(fullPathFile string) {
 
 	file, err := os.Open(fullPathFile)
-	errorCheck(err, "sendFileToServer", true)
+	if err != nil {
+		log.Warn(err)
+		return
+	}
+	defer file.Close()
 
 	buffer := make([]byte, opts.Buffer)
 	for {
-		if _, err := file.Read(buffer); err == io.EOF {
+		_, err := file.Read(buffer)
+		if err != nil {
+			if err != io.EOF {
+				log.Warn(err)
+			}
 			break
 		}
+
 		c.Send(DATA, filepath.Base(fullPathFile), buffer)
+		time.Sleep(5*time.Millisecond)  //TODO: replace it with wait AKN
 	}
 
 	c.Send(SEND_COMPLETED, filepath.Base(fullPathFile), []byte(Sha256Sum(fullPathFile)))

@@ -66,14 +66,20 @@ func (s *Server) processMessages() {
 	for msg := range s.messages {
 		switch msg.Opcode {
 		case RRQ:
-			log.Printf("RRQ for file %s with payload %s", msg.Filename, string(msg.Message))
+			log.Printf("RRQ for file %s with payload %s", msg.Filename,
+				string(msg.Message))
 		case WRQ:
 			log.Printf("WRQ for file %s with payload %s", msg.Filename, string(msg.Message))
 			CreateDirIfNotExist("myfiles")
+
+			//Will replace it if already exists
+			var file, err = os.Create("myfiles" + string(os.PathSeparator) + msg.Filename)
+			errorCheck(err, "creating a new file", false)
+			defer file.Close()
+
 			s.Send(ACK, msg.Filename, nil)
 
 		case DATA:
-			log.Printf("Data for file %s", msg.Filename)
 			s.WriteBytesToFile(msg.Filename, msg.Message)
 		case ACK:
 			log.Printf("Acknowledgment for file %s with payload %s", msg.Filename, string(msg.Message))
@@ -95,7 +101,7 @@ func (s *Server) processMessages() {
 }
 
 func (s *Server) WriteBytesToFile(filename string, payload []byte) {
-	f, err := os.OpenFile("myfiles/"+filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("myfiles/"+filename, os.O_APPEND|os.O_WRONLY, 0644)
 	errorCheck(err, "WriteBytesToFile", false)
 	_, err = f.Write(payload)
 	errorCheck(err, "WriteBytesToFile", false)

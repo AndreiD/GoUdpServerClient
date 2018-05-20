@@ -39,14 +39,14 @@ func main() {
 	go client.processMessages()
 
 	//sending 5kb.bin
-	filetosend := "5kb.bin"
+	filetosend := "20mb.bin"
 	dir, _ := os.Getwd()
 	fullFilePath := dir + "/aftp/client/myfiles/" + filetosend
 
-	client.Send(WRQ, "5kb.bin", []byte(Sha256Sum(fullFilePath)))
-	time.Sleep(2* time.Second)
-	client.Send(LIST_ALL, "", nil)
-
+	//client.Send(WRQ, "5kb.bin", []byte(Sha256Sum(fullFilePath)))
+	//time.Sleep(2* time.Second)
+	//client.Send(LIST_ALL, "", nil)
+	//
 	//time.Sleep(5* time.Second)
 	//
 	//client.Send(WRQ, "1mb.bin", []byte(Sha256Sum(fullFilePath)))
@@ -55,10 +55,10 @@ func main() {
 	//
 	//
 	//time.Sleep(5* time.Second)
-	//
-	//client.Send(WRQ, "20mb.bin", []byte(Sha256Sum(fullFilePath)))
-	//time.Sleep(2* time.Second)
-	//client.Send(LIST_ALL, "", nil)
+
+	client.Send(WRQ, "20mb.bin", []byte(Sha256Sum(fullFilePath)))
+	time.Sleep(2* time.Second)
+	client.Send(LIST_ALL, "", nil)
 
 	//block forever
 	select {}
