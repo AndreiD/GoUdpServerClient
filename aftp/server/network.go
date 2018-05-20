@@ -65,26 +65,29 @@ func (s *Server) processPackets() {
 func (s *Server) processMessages() {
 	for msg := range s.messages {
 		switch msg.Opcode {
-		case 0:
-			log.Printf("RRQ for file %s", msg.Filename)
-		case 1:
-			log.Printf("WRQ for file %s", msg.Filename)
-
-			CreateDirIfNotExist("incoming")
-			//will replace it if already exists
-			var file, err = os.Create("incoming" + string(os.PathSeparator) + msg.Filename)
-			errorCheck(err, "creating a new file", false)
-			defer file.Close()
-
+		case RRQ:
+			log.Printf("RRQ for file %s with payload %s", msg.Filename, string(msg.Message))
+		case WRQ:
+			log.Printf("WRQ for file %s with payload %s", msg.Filename, string(msg.Message))
+			CreateDirIfNotExist("myfiles")
 			s.Send(ACK, msg.Filename, nil)
 
-		case 2:
+		case DATA:
 			log.Printf("Data for file %s", msg.Filename)
 			s.WriteBytesToFile(msg.Filename, msg.Message)
-		case 3:
-			log.Printf("Acknowledgment for file %s", msg.Filename)
-		case 4:
+		case ACK:
+			log.Printf("Acknowledgment for file %s with payload %s", msg.Filename, string(msg.Message))
+		case ERROR:
 			log.Printf("Error for file %s [%s]", msg.Filename, string(msg.Message))
+		case SEND_COMPLETED:
+			log.Printf("SEND_COMPLETED for file %s with hash: %s", msg.Filename, string(msg.Message))
+			//got a send completed from the client. Issue a received ok
+			s.Send(RECEIVED_OK, msg.Filename, []byte(Sha256Sum("myfiles/"+msg.Filename)))
+		case RECEIVED_OK:
+			log.Printf("RECEIVED_OK for file %s with hash: %s", msg.Filename, string(msg.Message))
+		case LIST_ALL:
+			log.Printf("Got a list all request from the client. Listing....")
+			s.Send(LIST_ALL, "", ListAllFiles("myfiles"))
 		default:
 			log.Warnln("incorrect or not implemented opcode")
 		}
@@ -92,12 +95,13 @@ func (s *Server) processMessages() {
 }
 
 func (s *Server) WriteBytesToFile(filename string, payload []byte) {
-	f, err := os.OpenFile("incoming/"+ filename, os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("myfiles/"+filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	errorCheck(err, "WriteBytesToFile", false)
 	_, err = f.Write(payload)
 	errorCheck(err, "WriteBytesToFile", false)
 	defer f.Close()
 }
+
 func (s *Server) Send(opcode MessageType, filename string, payload []byte) {
 
 	msg := Message{

@@ -11,6 +11,9 @@ const (
 	DATA
 	ACK
 	ERROR
+	SEND_COMPLETED
+	RECEIVED_OK
+	LIST_ALL
 )
 
 //some bytes associated with an address
