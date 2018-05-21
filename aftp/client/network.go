@@ -87,11 +87,12 @@ func (c *Client) processMessages() {
 	for msg := range c.messages {
 		switch msg.Opcode {
 		case RRQ:
+			//servers cannot send RRQ...
 			log.Printf("RRQ for file %s with payload %s", msg.Filename, string(msg.Message))
 		case WRQ:
+			//servers cannot send WRQ...
 			log.Printf("WRQ for file %s with payload %s", msg.Filename, string(msg.Message))
 		case DATA:
-			log.Printf("Data for file %s", msg.Filename)
 			c.WriteBytesToFile(msg.Filename, msg.Message)
 		case ACK:
 			if string(msg.Message) == "WRQ" {
@@ -144,7 +145,8 @@ func (c *Client) sendFileToServer(fullPathFile string) {
 			break
 		}
 		c.Send(DATA, filepath.Base(fullPathFile), buffer[:n])
-		<-done //wait for ACK to write on channel done
+		// wait for ACK to write on channel done
+		<-done
 	}
 
 	c.Send(SEND_COMPLETED, filepath.Base(fullPathFile), []byte(Sha256Sum(fullPathFile)))
@@ -152,10 +154,16 @@ func (c *Client) sendFileToServer(fullPathFile string) {
 }
 
 func (s *Client) WriteBytesToFile(filename string, payload []byte) {
-	f, err := os.OpenFile("myfiles/"+filename, os.O_APPEND|os.O_WRONLY, 0644)
+
+	dir, _ := os.Getwd()
+	fullFilePath := dir + "/aftp/client/myfiles/" + filename
+
+	f, err := os.OpenFile(fullFilePath, os.O_APPEND|os.O_WRONLY, 0644)
 	errorCheck(err, "WriteBytesToFile", false)
 	_, err = f.Write(payload)
 	errorCheck(err, "WriteBytesToFile", false)
+
+	defer s.Send(ACK, filename, nil)
 	defer f.Close()
 }
 

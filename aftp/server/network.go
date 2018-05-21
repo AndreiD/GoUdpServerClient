@@ -5,7 +5,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmihailenco/msgpack"
 	"os"
+	"io"
+	"path/filepath"
 )
+
+var done chan bool
 
 func (s *Server) setupServerConnection(address string) {
 
@@ -63,12 +67,25 @@ func (s *Server) processPackets() {
 }
 
 func (s *Server) processMessages() {
+
+	done = make(chan bool, 1)
+
 	for msg := range s.messages {
 		switch msg.Opcode {
 		case RRQ:
 			log.Printf("RRQ for file %s with payload %s", msg.Filename,
 				string(msg.Message))
-			//send data now...
+
+			dir, _ := os.Getwd()
+			fullFilePath := dir + "/myfiles/" + msg.Filename
+
+			if _, err := os.Stat(fullFilePath); err == nil {
+				log.Info("sending file " + msg.Filename + " to the client. Hash: " + Sha256Sum(fullFilePath))
+				go s.sendFileToClient(fullFilePath)
+			} else {
+				log.Info("cannot find "+msg.Filename+" on the server.")
+				go s.Send(ERROR, "", []byte("cannot find "+msg.Filename+" on the server."))
+			}
 
 		case WRQ:
 			log.Printf("WRQ for file %s with payload %s", msg.Filename, string(msg.Message))
@@ -84,7 +101,20 @@ func (s *Server) processMessages() {
 		case DATA:
 			s.WriteBytesToFile(msg.Filename, msg.Message)
 		case ACK:
-			log.Printf("Acknowledgment for file %s with payload %s", msg.Filename, string(msg.Message))
+			if string(msg.Message) == "WRQ" {
+				//sending file to the client
+
+				dir, _ := os.Getwd()
+				fullFilePath := dir + "/aftp/server/myfiles/" + msg.Filename
+				log.Info("sending file " + msg.Filename + " to the client. Hash: " + Sha256Sum(fullFilePath))
+
+				if _, err := os.Stat(fullFilePath); err == nil {
+					go s.sendFileToClient(fullFilePath)
+				}
+			} else {
+				done <- true
+			}
+
 		case ERROR:
 			log.Printf("Error for file %s [%s]", msg.Filename, string(msg.Message))
 		case SEND_COMPLETED:
@@ -110,6 +140,32 @@ func (s *Server) WriteBytesToFile(filename string, payload []byte) {
 
 	defer s.Send(ACK, filename, nil)
 	defer f.Close()
+}
+
+func (s *Server) sendFileToClient(fullPathFile string) {
+
+	file, err := os.Open(fullPathFile)
+	if err != nil {
+		log.Warn(err)
+		return
+	}
+	defer file.Close()
+	buffer := make([]byte, opts.Buffer)
+	for {
+		n, err := file.Read(buffer)
+		if err != nil {
+			if err != io.EOF {
+				log.Warn(err)
+			}
+			break
+		}
+		s.Send(DATA, filepath.Base(fullPathFile), buffer[:n])
+
+		// wait for ACK to write on channel done
+		<-done
+	}
+
+	s.Send(SEND_COMPLETED, filepath.Base(fullPathFile), []byte(Sha256Sum(fullPathFile)))
 
 }
 

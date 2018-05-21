@@ -8,7 +8,7 @@ import (
 
 var opts struct {
 	Port  int  `short:"p" long:"port" default:"6969" description:"port to listen to."`
-	Buffer  int  `short:"b" long:"buffer" default:"20480" description:"buffer size. default 1024"`
+	Buffer  int  `short:"b" long:"buffer" default:"1024" description:"buffer size. default 1024"`
 	Quiet bool `short:"q" long:"quiet" description:"print less logging information"`
 }
 
@@ -39,7 +39,7 @@ func main() {
 
 
 
-	go server.readFromSocket(opts.Buffer)
+	go server.readFromSocket(opts.Buffer  + 128)
 	go server.processPackets()
 	go server.processMessages()
 
