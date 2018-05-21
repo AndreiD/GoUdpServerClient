@@ -13,6 +13,7 @@ import (
 )
 
 const ALIVE_CHECK_TIME = time.Second * 10
+var done chan bool
 
 func (c *Client) setupConnection(address string) {
 	addr, err := net.ResolveUDPAddr("udp4", address)
@@ -32,6 +33,9 @@ func (c *Client) setupConnection(address string) {
 	errorCheck(err, "setupConnection", true)
 
 	log.Printf("listening on: local:%s\n", conn.LocalAddr())
+
+	//initialize the signal for ack on data transfers
+
 
 }
 
@@ -76,6 +80,10 @@ func (c *Client) processPackets() {
 }
 
 func (c *Client) processMessages() {
+
+
+	done = make(chan bool, 1)
+
 	for msg := range c.messages {
 		switch msg.Opcode {
 		case RRQ:
@@ -86,19 +94,18 @@ func (c *Client) processMessages() {
 			log.Printf("Data for file %s", msg.Filename)
 			c.WriteBytesToFile(msg.Filename, msg.Message)
 		case ACK:
-			log.Printf("Acknowledgment for file %s with payload %s", msg.Filename, string(msg.Message))
+			if string(msg.Message) == "WRQ" {
+				//sending file to server
 
-			//we got AKN, start sending or receiving ?
+				dir, _ := os.Getwd()
+				fullFilePath := dir + "/aftp/client/myfiles/" + msg.Filename
+				log.Info("sending file " + msg.Filename + " to the server. Hash: " + Sha256Sum(fullFilePath))
 
-			//TODO: maybe refactor here...
-			dir, _ := os.Getwd()
-			fullFilePath := dir + "/aftp/client/myfiles/" + msg.Filename
-
-			if _, err := os.Stat(fullFilePath); err == nil {
-				log.Info("file " + msg.Filename + " exists, sending it to the server. Hash: " + Sha256Sum(fullFilePath))
-				c.sendFileToServer(fullFilePath)
+				if _, err := os.Stat(fullFilePath); err == nil {
+					go c.sendFileToServer(fullFilePath)
+				}
 			} else {
-				log.Info("file " + msg.Filename + " doesn't exist, waiting for the server to send it")
+				done <- true
 			}
 
 		case ERROR:
@@ -127,19 +134,17 @@ func (c *Client) sendFileToServer(fullPathFile string) {
 		return
 	}
 	defer file.Close()
-
 	buffer := make([]byte, opts.Buffer)
 	for {
-		_, err := file.Read(buffer)
+		n , err := file.Read(buffer)
 		if err != nil {
 			if err != io.EOF {
 				log.Warn(err)
 			}
 			break
 		}
-
-		c.Send(DATA, filepath.Base(fullPathFile), buffer)
-		time.Sleep(5*time.Millisecond)  //TODO: replace it with wait AKN
+		c.Send(DATA, filepath.Base(fullPathFile), buffer[:n])
+		<-done //wait for ACK to write on channel done
 	}
 
 	c.Send(SEND_COMPLETED, filepath.Base(fullPathFile), []byte(Sha256Sum(fullPathFile)))
@@ -159,9 +164,6 @@ func (c *Client) Send(opcode MessageType, filename string, payload []byte) {
 	msg := Message{
 		opcode, filename, payload,
 	}
-
-	//log.Println(">>> CLIENT SENDING >>> ")
-	//spew.Dump(msg)
 
 	b, err := msgpack.Marshal(msg)
 	errorCheck(err, "Send", false)

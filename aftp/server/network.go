@@ -68,6 +68,8 @@ func (s *Server) processMessages() {
 		case RRQ:
 			log.Printf("RRQ for file %s with payload %s", msg.Filename,
 				string(msg.Message))
+			//send data now...
+
 		case WRQ:
 			log.Printf("WRQ for file %s with payload %s", msg.Filename, string(msg.Message))
 			CreateDirIfNotExist("myfiles")
@@ -77,7 +79,7 @@ func (s *Server) processMessages() {
 			errorCheck(err, "creating a new file", false)
 			defer file.Close()
 
-			s.Send(ACK, msg.Filename, nil)
+			s.Send(ACK, msg.Filename, []byte("WRQ"))
 
 		case DATA:
 			s.WriteBytesToFile(msg.Filename, msg.Message)
@@ -105,7 +107,10 @@ func (s *Server) WriteBytesToFile(filename string, payload []byte) {
 	errorCheck(err, "WriteBytesToFile", false)
 	_, err = f.Write(payload)
 	errorCheck(err, "WriteBytesToFile", false)
+
+	defer s.Send(ACK, filename, nil)
 	defer f.Close()
+
 }
 
 func (s *Server) Send(opcode MessageType, filename string, payload []byte) {
